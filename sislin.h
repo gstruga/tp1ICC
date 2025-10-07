@@ -9,7 +9,7 @@
 #include "utils.h"
 #include "sislin.h"
 
-void criaKDiagonal(int n, int k, double **A, double **B);
+void criaKDiagonal(int n, int k, double **A, double *B);
 
 void genSimetricaPositiva(double *A, double *b, int n, int k, double **ASP, double **bsp, double *tempo);
 void geraDLU (double *A, int n, int k, double **D, double **L, double **U, double *tempo);

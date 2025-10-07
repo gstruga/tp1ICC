@@ -32,14 +32,21 @@ static inline real_t generateRandomB( unsigned int k )
 
 
 /* Cria matriz 'A' k-diagonal e Termos independentes B */
-void criaKDiagonal(int n, int k, real_t **A, real_t **B)
+void criaKDiagonal(int n, int k, real_t **A, real_t *B)
 {
+  for (int i = 0; i < n; i++)
+    for (int j = 0; j < n; j++)
+      A[i][j] = generateRandomA(i, j, k);
+
+  for (int i = 0; i < n; i++)
+    B[i] = generateRandomB(k);
+  
   
 }
 
 /* Gera matriz simetrica positiva */
 void genSimetricaPositiva(real_t *A, real_t *b, int n, int k, 
-			  real_t **ASP, real_t *bsp, rtime_t *tempo)
+			  real_t **ASP, real_t **bsp, rtime_t *tempo)
 {
   *tempo = timestamp();
 
