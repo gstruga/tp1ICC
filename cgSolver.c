@@ -4,8 +4,8 @@
 
 int main()
 {
-    srand(20252);
-    int n = 10;
+    srandom(20252);
+    int n = 5;
     real_t **A, *B;
 
     A = (real_t **) malloc(sizeof(real_t *) * n);
@@ -22,12 +22,26 @@ int main()
     {
         for (int j = 0; j < n; j++)
         {
-            printf("%lld ", A[i][j]);
+            printf("%f ", A[i][j]);
         }
 
-        printf("%lld\n", B[i]);
+        printf("%f\n", B[i]);
         
     }
+
+    double tempo;
+    real_t *X = calloc(n, sizeof(real_t));
+    real_t res = calcResiduoSL(A, B, X, n, 3, &tempo);
+
+    printf("%f\n", res);
+
+    for (int i = 0; i < n; i++)
+    {
+        free(A[i]);
+    }
+    free(A);
+    free(B);
+    
     
     return 0;
 }

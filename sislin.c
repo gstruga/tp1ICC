@@ -77,7 +77,7 @@ void geraPreCond(real_t *D, real_t *L, real_t *U, real_t w, int n, int k,
   *tempo = timestamp() - *tempo;
 }
 
-
+/*!!!!!!*/
 real_t calcResiduoSL (real_t *A, real_t *b, real_t *X,
 		      int n, int k, rtime_t *tempo)
 {
@@ -85,9 +85,26 @@ real_t calcResiduoSL (real_t *A, real_t *b, real_t *X,
 
   real_t *r = calloc(n, sizeof(real_t));
 
+  /*r = Ax-B*/
+
+  for (int i = 0; i < n; i++)
+  {    
+    r[i] = b[i] - A[i]*X[i];
+  }
   
+  real_t maior = r[0]; 
+  for (int i = 1; i < n; i++)
+  {
+    if (maior < r[i])
+    {
+      maior = r[i];
+    }
+    
+  }
+  free(r);
 
   *tempo = timestamp() - *tempo;
+  return maior;
 }
 
 
