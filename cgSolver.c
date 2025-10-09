@@ -41,7 +41,7 @@ int main()
     }
     free(A);
     free(B);
-    
+    free(X);
     
     return 0;
 }
