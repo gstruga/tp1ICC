@@ -95,3 +95,17 @@ real_t calcResiduoSL(real_t **A, real_t *b, real_t *X,
   *tempo = timestamp() - *tempo;
   return sqrt(soma);
 }
+
+
+/* double norma_erro_maximo(int n, double x_k[n], double x_k_1[n]) {
+    double max_diferenca = 0.0;
+
+    for (int i = 0; i < n; i++) {
+        double diff = fabs(x_k[i] - x_k_1[i]);
+        if (diff > max_diferenca) {
+            max_diferenca = diff;
+        }
+    }
+
+    return max_diferenca;
+} */
