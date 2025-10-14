@@ -22,7 +22,7 @@ static inline real_t vetorTxVetor(real_t *vetor, int tam)
   return acomulador;
 }
 
-real_t vetorTxMatrizxVetor(const real_t *vetor, const real_t **Matriz, int tam, int k)
+real_t vetorTxMatrizxVetor(real_t *vetor, real_t **Matriz, int tam, int k)
 {
   int limitei = LIMITEI(k);
   int limitej = LIMITEJ(k);
@@ -56,8 +56,33 @@ real_t vetorTxMatrizxVetor(const real_t *vetor, const real_t **Matriz, int tam, 
   return acumulador;
 }
 
-void matrizXvetor(real_t **matriz, real_t *vetor, real_t *vetorDestino)
+void matrizXvetor(real_t **matriz, real_t *vetor, real_t *vetorDestino, int tam, int k)
 {
+  int limitei = LIMITEI(k);
+  int limitej = LIMITEJ(k);
+
+  memset(vetorDestino, 0, tam * sizeof(real_t));
+
+  for (int i = 0; i < tam; i++)
+  {
+    int j = 0;
+    while (j < tam)
+    {
+      if (i > limitei + j)
+      {
+        j++;
+      }
+      else if (i < j - limitej)
+      {
+        break;
+      }
+      else
+      {
+        vetorDestino[i] += vetor[j] * matriz[i][j];
+        j++;
+      }
+    }
+  }
 }
 
 real_t norma_erro_maximo(int n, double *x_k, double *x_k_1)
@@ -277,7 +302,7 @@ void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
     real_t residuoAntigo = vetorTxVetor(residuo, n);
     real_t ak = residuoAntigo / vetorTxMatrizxVetor(p, A, n, k);
 
-    matrizXvetor(A, p, Apk);
+    matrizXvetor(A, p, Apk, n, k);
 
     for (int j = 0; j < n; j++)
     {
@@ -303,7 +328,7 @@ void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
 
   for (int i = 0; i < n; i++)
   {
-    free(ASP);
+    free(ASP[i]);
   }
 
   free(ASP);

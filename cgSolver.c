@@ -32,6 +32,14 @@ int main()
 
     double tempo;
     real_t *X = calloc(n, sizeof(real_t));
+
+    resolveSemPreCondicionador(A, B, X, n, k, &tempo, 20, __DBL_EPSILON__);
+
+    for (int i = 0; i < n; i++)
+    {
+        printf("%f\n", X[i]);
+    }
+
     real_t res = calcResiduoSL(A, B, X, n, k, residuo, &tempo);
 
     printf("%f\n", res);
