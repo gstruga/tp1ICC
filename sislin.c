@@ -7,7 +7,58 @@
 #include "utils.h"
 #include "sislin.h"
 
+#define LIMITEI(k) (((int)(ceil(k / 2.0))) - (1))
+#define LIMITEJ(k) ((int)(floor(k / 2.0)))
+
 /* ----- FUNCOES AUXILIARES ----- */
+
+static inline real_t vetorTxVetor(real_t *vetor, int tam)
+{
+  real_t acomulador = 0.0;
+  for (int i = 0; i < tam; i++)
+  {
+    acomulador += vetor[i] * vetor[i];
+  }
+  return acomulador;
+}
+
+real_t vetorTxMatrizxVetor(const real_t *vetor, const real_t **Matriz, int tam, int k)
+{
+  int limitei = LIMITEI(k);
+  int limitej = LIMITEJ(k);
+  real_t acumuladores[tam], acumulador = 0;
+  memset(acumuladores, 0, tam * sizeof(real_t));
+
+  for (int i = 0; i < tam; i++)
+  {
+    int j = 0;
+    while (j < tam)
+    {
+      if (i > limitei + j)
+      {
+        j++;
+      }
+      else if (i < j - limitej)
+      {
+        break;
+      }
+      else
+      {
+        acumuladores[i] += vetor[j] * Matriz[i][j];
+        j++;
+      }
+    }
+  }
+  for (int i = 0; i < tam; i++)
+  {
+    acumulador += vetor[i] * acumuladores[i];
+  }
+  return acumulador;
+}
+
+void matrizXvetor(real_t **matriz, real_t *vetor, real_t *vetorDestino)
+{
+}
 
 real_t norma_erro_maximo(int n, double *x_k, double *x_k_1)
 {
@@ -25,23 +76,21 @@ real_t norma_erro_maximo(int n, double *x_k, double *x_k_1)
   return max_diferenca;
 }
 
-void somaComTransposta(real_t** resultado, real_t** matriz, int n){
+void somaComTransposta(real_t **resultado, real_t **matriz, int n)
+{
   if (!resultado || !matriz)
   {
     perror("UM DOS ARGUMENTOS DA FUNCAO EH NULL\n");
     exit(-1);
   }
-  
-  
+
   for (int i = 0; i < n; i++)
   {
     for (int j = 0; j < n; j++)
     {
       resultado[i][j] = matriz[i][j] + matriz[j][i];
     }
-    
   }
-  
 }
 
 /* ----- FUNCOES AUXILIARES ----- */
@@ -71,8 +120,8 @@ static inline real_t generateRandomB(unsigned int k)
 /* Cria matriz 'A' k-diagonal e Termos independentes B */
 void criaKDiagonal(int n, int k, real_t **A, real_t *B)
 {
-  int limitei = (int)ceil(k / 2.0) - 1;
-  int limitej = (int)floor(k / 2.0);
+  int limitei = LIMITEI(k);
+  int limitej = LIMITEJ(k);
 
   for (int i = 0; i < n; i++)
   {
@@ -106,20 +155,18 @@ void genSimetricaPositiva(real_t **A, real_t *b, int n, int k,
     {
       ASP[i][j] *= 0.5;
     }
-    
   }
 
-   for (int i = 0; i < n; i++)
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
     {
-        for (int j = 0; j < n; j++)
-        {
-            printf("%f ", ASP[i][j]);
-        }
-
-        printf("\n");
-        
+      printf("%f ", ASP[i][j]);
     }
-  
+
+    printf("\n");
+  }
+
   *tempo = timestamp() - *tempo;
 }
 
@@ -171,7 +218,7 @@ real_t calcResiduoSL(real_t **A, real_t *b, real_t *X,
 void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
                                 int n, int k, rtime_t *tempo, int max_it, real_t epsilon)
 {
-  real_t **ASP, *BSP, *residuo, *p;
+  real_t **ASP, *BSP, *residuo, *p, *Apk, betaK;
   ASP = (real_t **)malloc(sizeof(real_t *) * n);
 
   if (!ASP)
@@ -211,29 +258,49 @@ void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
     exit(-1);
   }
 
+  Apk = malloc(sizeof(real_t) * n);
+  if (!Apk)
+  {
+    perror("ERRO AO ALOCAR VETOR\n");
+    exit(-1);
+  }
+
   *tempo = timestamp();
 
   genSimetricaPositiva(A, b, n, k, ASP, BSP, tempo);
-  if(calcResiduoSL(ASP, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
+  if (calcResiduoSL(ASP, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
     return;
 
   memcpy(p, residuo, n * sizeof(real_t));
   for (int i = 0; i < max_it; i++)
   {
-    real_t ak = multiplicaComTransposta(residuo, n) / vetorMultComMatriz(p, A, n);
+    real_t residuoAntigo = vetorTxVetor(residuo, n);
+    real_t ak = residuoAntigo / vetorTxMatrizxVetor(p, A, n, k);
+
+    matrizXvetor(A, p, Apk);
 
     for (int j = 0; j < n; j++)
     {
       X[j] += ak * p[j];
+      residuo[j] -= ak * Apk[j];
     }
-    
+
+    if (calcResiduoSL(ASP, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
+      break;
+
+    betaK = vetorTxVetor(residuo, n) / residuoAntigo;
+
+    for (int j = 0; j < n; j++)
+    {
+      p[j] = residuo[j] + betaK * p[j];
+    }
   }
-  
+
   *tempo = timestamp() - *tempo;
 
   free(residuo);
   free(BSP);
- 
+
   for (int i = 0; i < n; i++)
   {
     free(ASP);
