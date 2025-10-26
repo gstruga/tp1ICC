@@ -1,0 +1,7 @@
+Guilherme Strugala GRR20241789
+
+Em sislin.h e sislin.c:
+Foi onde eu implementei o código que calcula o metodo do gradiente, lá eu criei alguma funções, entre elas estão: "gradienteConjugado" e "multiplicaPeloPreCondicionador", a primeira implementa o pseudocódigo que está disponível na wikipédia. Já a segunda multiplica tanto a matriz quanto o vetor de termos independentes pelo pré-condicionador e guarda na matrizNova e no vetorNovo.
+
+cgSolver.c:
+Foi onde eu implementei o meu main, lá, para armazenar o SL, eu usei uma matriz e um vetor para armazenar os coeficientes e os termos independentes, acabei escolhendo essa opção ineficiente por considerá-la mais fácil de trabalhar.

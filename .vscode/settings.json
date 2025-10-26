@@ -1,8 +1,10 @@
 {
     "files.associations": {
+        "*.heex": "phoenix-heex",
         "array": "c",
         "algorithm": "c",
         "random": "c",
-        "numeric": "c"
+        "numeric": "c",
+        "sislin.h": "c"
     }
 }

@@ -10,18 +10,24 @@
 #define LIMITEI(k) (((int)(ceil(k / 2.0))) - (1))
 #define LIMITEJ(k) ((int)(floor(k / 2.0)))
 
+#define SEM_PRE_CONDICIONADOR -1.0
+#define JACOBI 0.0
+#define GAUSS_SEIDEL 1.0
+
 /* ----- FUNCOES AUXILIARES ----- */
 
-static inline real_t vetorTxVetor(real_t *vetor, int tam)
+/*faz o vetor trasposto vezes o vetor*/
+static inline real_t produtoInternoDeVetores(real_t *vetor1, real_t *vetor2, int tam)
 {
   real_t acomulador = 0.0;
   for (int i = 0; i < tam; i++)
   {
-    acomulador += vetor[i] * vetor[i];
+    acomulador += vetor1[i] * vetor2[i];
   }
   return acomulador;
 }
 
+/*faz o vetor transposto vezes uma matriz vezes o vetor*/
 real_t vetorTxMatrizxVetor(real_t *vetor, real_t **Matriz, int tam, int k)
 {
   int limitei = LIMITEI(k);
@@ -56,6 +62,7 @@ real_t vetorTxMatrizxVetor(real_t *vetor, real_t **Matriz, int tam, int k)
   return acumulador;
 }
 
+/* faz matriz vezes vetor */
 void matrizXvetor(real_t **matriz, real_t *vetor, real_t *vetorDestino, int tam, int k)
 {
   int limitei = LIMITEI(k);
@@ -85,6 +92,7 @@ void matrizXvetor(real_t **matriz, real_t *vetor, real_t *vetorDestino, int tam,
   }
 }
 
+/*calcula a norma maxima do erro*/
 real_t norma_erro_maximo(int n, double *x_k, double *x_k_1)
 {
   real_t max_diferenca = 0.0;
@@ -101,6 +109,7 @@ real_t norma_erro_maximo(int n, double *x_k, double *x_k_1)
   return max_diferenca;
 }
 
+/* soma a matriz com sua transposta e guarda em resultado */
 void somaComTransposta(real_t **resultado, real_t **matriz, int n)
 {
   if (!resultado || !matriz)
@@ -173,32 +182,52 @@ void genSimetricaPositiva(real_t **A, real_t *b, int n, int k,
 {
   *tempo = timestamp();
   somaComTransposta(ASP, A, n);
-
+  int limitej = LIMITEJ(k);
   for (int i = 0; i < n; i++)
   {
-    for (int j = 0; j < n; j++)
+    ASP[i][i] *= 0.5;
+    for (int j = i + 1; j <= i + limitej; j++)
     {
+      if (j >= n)
+        break;
+      ASP[i][j] *= 0.5;
+    }
+
+    for (int j = i - 1; j <= i - limitej; j--)
+    {
+      if (j < 0)
+        break;
       ASP[i][j] *= 0.5;
     }
   }
 
-  for (int i = 0; i < n; i++)
-  {
-    for (int j = 0; j < n; j++)
-    {
-      printf("%f ", ASP[i][j]);
-    }
-
-    printf("\n");
-  }
-
+  memcpy(bsp, b, n * sizeof(real_t));
   *tempo = timestamp() - *tempo;
 }
 
-void geraDLU(real_t *A, int n, int k,
-             real_t **D, real_t **L, real_t **U, rtime_t *tempo)
+void geraDLU(real_t **A, int n, int k,
+             real_t *D, real_t **L, real_t **U, rtime_t *tempo)
 {
   *tempo = timestamp();
+  int limitej = LIMITEJ(k);
+  for (int i = 0; i < n; i++)
+  {
+    D[i] = A[i][i];
+    for (int j = i + 1; j <= i + limitej; j++)
+    {
+      if (j >= n)
+        break;
+
+      U[i][j] = A[i][j];
+    }
+    for (int j = i - 1; j >= i - limitej; j--)
+    {
+      if (j < 0)
+        break;
+
+      L[i][j] = A[i][j];
+    }
+  }
 
   *tempo = timestamp() - *tempo;
 }
@@ -207,14 +236,37 @@ void geraDLU(real_t *A, int n, int k,
  * Devolve matriz M⁻¹
  *
  */
-void geraPreCond(real_t *D, real_t *L, real_t *U, real_t w, int n, int k,
+void geraPreCond(real_t *D, real_t **L, real_t **U, real_t w, int n, int k,
                  real_t **M, rtime_t *tempo)
 {
   *tempo = timestamp();
 
+  if (w == SEM_PRE_CONDICIONADOR)
+  {
+    for (int i = 0; i < n; i++)
+    {
+      M[i][i] = 1.0;
+    }
+    return;
+  }
+  else if (w == JACOBI)
+  {
+    for (int i = 0; i < n; i++)
+    {
+      M[i][i] = 1.0 / D[i];
+    }
+    return;
+  }
+  else
+  {
+    perror("OMEGA INVALIDO\n");
+    exit(-1);
+  }
+
   *tempo = timestamp() - *tempo;
 }
 
+/*preenche o vetor residuo e retorna norma L2 do residuo*/
 real_t calcResiduoSL(real_t **A, real_t *b, real_t *X,
                      int n, int k, real_t *residuo, rtime_t *tempo)
 {
@@ -240,37 +292,28 @@ real_t calcResiduoSL(real_t **A, real_t *b, real_t *X,
   return sqrt(soma);
 }
 
-void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
-                                int n, int k, rtime_t *tempo, int max_it, real_t epsilon)
+/*aplica o gradiente conjugado e retorna a norma da solucao com a iteracao anterior*/
+real_t gradienteConjugado(real_t **A, real_t *b, real_t *X, real_t **M,
+                          int n, int k, rtime_t *tempo, int max_it, real_t epsilon, rtime_t *tempoResiduo, int *totalIt)
 {
-  real_t **ASP, *BSP, *residuo, *p, *Apk, betaK;
-  ASP = (real_t **)malloc(sizeof(real_t *) * n);
-
-  if (!ASP)
-  {
-    perror("ERRO AO ALOCAR MATRIZ\n");
-    exit(-1);
-  }
-
-  BSP = malloc(sizeof(real_t) * n);
-  if (!BSP)
+  real_t *residuo, *p, *Apk, *XAntigo, *zk, betaK;
+  real_t norma;
+  residuo = malloc(sizeof(real_t) * n);
+  if (!residuo)
   {
     perror("ERRO AO ALOCAR VETOR\n");
     exit(-1);
   }
 
-  for (int i = 0; i < n; i++)
+  XAntigo = calloc(sizeof(real_t), n);
+  if (!XAntigo)
   {
-    ASP[i] = malloc(sizeof(real_t) * n);
-    if (!ASP[i])
-    {
-      perror("ERRO AO ALOCAR VETOR\n");
-      exit(-1);
-    }
+    perror("ERRO AO ALOCAR VETOR\n");
+    exit(-1);
   }
 
-  residuo = malloc(sizeof(real_t) * n);
-  if (!residuo)
+  zk = calloc(sizeof(real_t), n);
+  if (!zk)
   {
     perror("ERRO AO ALOCAR VETOR\n");
     exit(-1);
@@ -292,45 +335,86 @@ void resolveSemPreCondicionador(real_t **A, real_t *b, real_t *X,
 
   *tempo = timestamp();
 
-  genSimetricaPositiva(A, b, n, k, ASP, BSP, tempo);
-  if (calcResiduoSL(ASP, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
-    return;
+  *totalIt = 0;
+  if (calcResiduoSL(A, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
+    return 0.0;
 
-  memcpy(p, residuo, n * sizeof(real_t));
+  matrizXvetor(M, residuo, zk, n, k);
+  memcpy(p, zk, n * sizeof(real_t));
   for (int i = 0; i < max_it; i++)
   {
-    real_t residuoAntigo = vetorTxVetor(residuo, n);
-    real_t ak = residuoAntigo / vetorTxMatrizxVetor(p, A, n, k);
+    real_t numerador = produtoInternoDeVetores(residuo, zk, n);
+    real_t ak = numerador / vetorTxMatrizxVetor(p, A, n, k);
 
     matrizXvetor(A, p, Apk, n, k);
 
+    memcpy(XAntigo, X, n * sizeof(real_t));
     for (int j = 0; j < n; j++)
     {
       X[j] += ak * p[j];
       residuo[j] -= ak * Apk[j];
     }
 
-    if (calcResiduoSL(ASP, b, X, n, k, residuo, tempo) - epsilon <= DBL_EPSILON)
-      break;
+    (*totalIt)++;
 
-    betaK = vetorTxVetor(residuo, n) / residuoAntigo;
+    *tempoResiduo = timestamp();
+    real_t residuoNovo = produtoInternoDeVetores(residuo, residuo, n);
+    *tempoResiduo = timestamp() - *tempoResiduo;
+    norma = norma_erro_maximo(n, XAntigo, X);
+    if (norma - epsilon < DBL_EPSILON)
+    {
+      break;
+    }
+    matrizXvetor(M, residuo, zk, n, k);
+
+    betaK = produtoInternoDeVetores(residuo, zk, n) / numerador;
 
     for (int j = 0; j < n; j++)
     {
-      p[j] = residuo[j] + betaK * p[j];
+      p[j] = zk[j] + betaK * p[j];
     }
   }
 
   *tempo = timestamp() - *tempo;
 
+  free(XAntigo);
+
   free(residuo);
-  free(BSP);
+
+  free(Apk);
+
+  free(p);
+
+  free(zk);
+
+  return norma;
+}
+
+/* multiplica a matriz de coeficientes e os termos independentes pelo precondicionador
+ * e guarda em matrizNova e em vetorNovo */
+void multiplicaPeloPreCondicionador(real_t **matrizNova, real_t **A, real_t **M, real_t *vetorNovo, real_t *B, int n, rtime_t *tempo)
+{
+  *tempo = timestamp();
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      matrizNova[i][j] = 0.0;
+      for (int k = 0; k < n; k++)
+      {
+        matrizNova[i][j] += M[i][k] * A[k][j];
+      }
+    }
+  }
 
   for (int i = 0; i < n; i++)
   {
-    free(ASP[i]);
+    vetorNovo[i] = 0.0;
+    for (int k = 0; k < n; k++)
+    {
+      vetorNovo[i] += M[i][k] * B[k];
+    }
   }
 
-  free(ASP);
-  free(p);
+  *tempo = timestamp() - *tempo;
 }

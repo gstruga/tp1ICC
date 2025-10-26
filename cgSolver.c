@@ -2,56 +2,136 @@
 #include "sislin.h"
 #include "utils.h"
 
-int main()
+/*libera toda memoria da heap*/
+void free_tudo(real_t **A, real_t **ASP, real_t **Acondicionada, real_t **L, real_t **U, real_t **M, real_t *BSP,
+               real_t *Bcondicionada, real_t *B, real_t *X, real_t *residuo, real_t *D, int n)
 {
-    srandom(20252);
-    int n = 8;
-    int k = 5;
-    real_t **A, *B, *residuo;
-
-    A = (real_t **)malloc(sizeof(real_t *) * n);
-    B = malloc(sizeof(real_t) * n);
-    residuo = malloc(sizeof(real_t) * n);
-
-    for (int i = 0; i < n; i++)
-    {
-        A[i] = malloc(sizeof(real_t) * n);
-    }
-
-    criaKDiagonal(n, k, A, B);
-
-    for (int i = 0; i < n; i++)
-    {
-        for (int j = 0; j < n; j++)
-        {
-            printf("%f ", A[i][j]);
-        }
-
-        printf("%f\n", B[i]);
-    }
-
-    double tempo;
-    real_t *X = calloc(n, sizeof(real_t));
-
-    resolveSemPreCondicionador(A, B, X, n, k, &tempo, 20, __DBL_EPSILON__);
-
-    for (int i = 0; i < n; i++)
-    {
-        printf("%f\n", X[i]);
-    }
-
-    real_t res = calcResiduoSL(A, B, X, n, k, residuo, &tempo);
-
-    printf("%f\n", res);
-
     for (int i = 0; i < n; i++)
     {
         free(A[i]);
+        free(ASP[i]);
+        free(Acondicionada[i]);
+        free(L[i]);
+        free(U[i]);
+        free(M[i]);
     }
     free(A);
+    free(Acondicionada);
+    free(Bcondicionada);
+    free(ASP);
+    free(BSP);
     free(B);
     free(X);
     free(residuo);
+    free(D);
+    free(L);
+    free(U);
+    free(M);
+}
+
+/*aloca uma matriz na heap*/
+static inline real_t **aloca_matriz(int tam)
+{
+    real_t **aux = (real_t **)calloc(sizeof(real_t *), tam);
+
+    if (!aux)
+    {
+        perror("ERRO AO ALOCAR MATRIZ\n");
+        exit(-1);
+    }
+    for (int i = 0; i < tam; i++)
+    {
+        aux[i] = (real_t *)calloc(sizeof(real_t), tam);
+        if (!aux[i])
+        {
+            perror("ERRO AO ALOCAR VETOR\n");
+            exit(-1);
+        }
+    }
+
+    return (aux);
+}
+
+/*aloca um vetor na heap*/
+static inline real_t *aloca_vetor(int tam)
+{
+    real_t *aux = (real_t *)calloc(sizeof(real_t), tam);
+
+    if (!aux)
+    {
+        perror("ERRO AO ALOCAR VETOR\n");
+        exit(-1);
+    }
+
+    return aux;
+}
+
+int main()
+{
+    srandom(20252);
+    int n, k, maxit, totalIt;
+    real_t w = 0.0;
+    real_t **A, *B, **ASP, **Acondicionada, *BSP, *Bcondicionada, *residuo;
+    real_t *D, **L, **U, **M, e;
+    rtime_t tempoPC, tempoIter, tempoResiduo;
+
+    scanf("%d %d %lf %d %lf", &n, &k, &w, &maxit, &e);
+    if (w != -1.0 && w != 0.0)
+    {
+        printf("NAO IMPLEMENTEI PRECONDICIONADOR DE GAUSS-SEIDEL E SSOR\n");
+        return -1;
+    }
+
+    A = aloca_matriz(n);
+    B = aloca_vetor(n);
+    residuo = aloca_vetor(n);
+    ASP = aloca_matriz(n);
+    BSP = aloca_vetor(n);
+    Acondicionada = aloca_matriz(n);
+    Bcondicionada = aloca_vetor(n);
+
+    D = aloca_vetor(n);
+    L = aloca_matriz(n);
+    U = aloca_matriz(n);
+    M = aloca_matriz(n);
+
+    real_t *X = aloca_vetor(n);
+
+    criaKDiagonal(n, k, A, B);
+
+    double tempo;
+
+    tempoPC = timestamp();
+    genSimetricaPositiva(A, B, n, k, ASP, BSP, &tempo);
+    geraDLU(ASP, n, k, D, L, U, &tempo);
+    geraPreCond(D, L, U, w, n, k, M, &tempo);
+    tempoPC = timestamp() - tempoPC;
+
+    tempoIter = timestamp();
+    real_t norma = gradienteConjugado(ASP, BSP, X, M, n, k, &tempo, maxit, e, &tempoResiduo, &totalIt);
+    tempoIter = timestamp() - tempoIter;
+
+    tempoIter = tempoIter / totalIt;
+    printf("%d\n", n);
+    for (int i = 0; i < n; i++)
+    {
+        printf("%.16g ", X[i]);
+    }
+    printf("\n");
+
+    printf("%.8g\n", norma);
+
+    real_t res = calcResiduoSL(A, B, X, n, k, residuo, &tempo);
+
+    printf("%.8g\n", res);
+
+    printf("%.8g\n", tempoPC);
+
+    printf("%.8g\n", tempoIter);
+
+    printf("%.8g\n", tempoResiduo);
+
+    free_tudo(A, ASP, Acondicionada, L, U, M, BSP, Bcondicionada, B, X, residuo, D, n);
 
     return 0;
 }

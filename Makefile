@@ -1,6 +1,6 @@
         CC = gcc
 
-    CFLAGS = -O0 -g -Wextra -Wall
+    CFLAGS = -O0 -g
     LFLAGS = -lm
 
       PROG = cgSolver
@@ -12,7 +12,7 @@
 
 # Lista de arquivos para distribuição
 DISTFILES = *.c *.h Makefile LEIAME
-DISTDIR = login1-login2
+DISTDIR = gs24
 
 .PHONY: clean purge dist all
 
