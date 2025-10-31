@@ -16,6 +16,28 @@
 
 /* ----- FUNCOES AUXILIARES ----- */
 
+static inline real_t **aloca_matriz(int tam)
+{
+  real_t **aux = (real_t **)calloc(sizeof(real_t *), tam);
+
+  if (!aux)
+  {
+    perror("ERRO AO ALOCAR MATRIZ\n");
+    exit(-1);
+  }
+  for (int i = 0; i < tam; i++)
+  {
+    aux[i] = (real_t *)calloc(sizeof(real_t), tam);
+    if (!aux[i])
+    {
+      perror("ERRO AO ALOCAR VETOR\n");
+      exit(-1);
+    }
+  }
+
+  return (aux);
+}
+
 /*faz o vetor trasposto vezes o vetor*/
 static inline real_t produtoInternoDeVetores(real_t *vetor1, real_t *vetor2, int tam)
 {
@@ -181,8 +203,17 @@ void genSimetricaPositiva(real_t **A, real_t *b, int n, int k,
                           real_t **ASP, real_t *bsp, rtime_t *tempo)
 {
   *tempo = timestamp();
-  somaComTransposta(ASP, A, n);
-  int limitej = LIMITEJ(k);
+  real_t **AT = aloca_matriz(n);
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      AT[i][j] = A[j][i];
+    }
+  }
+
+  multiplicaPeloPreCondicionador(ASP, A, AT, bsp, b, n, NULL);
+  /*int limitej = LIMITEJ(k);
   for (int i = 0; i < n; i++)
   {
     ASP[i][i] *= 0.5;
@@ -201,7 +232,14 @@ void genSimetricaPositiva(real_t **A, real_t *b, int n, int k,
     }
   }
 
-  memcpy(bsp, b, n * sizeof(real_t));
+  memcpy(bsp, b, n * sizeof(real_t));*/
+
+  for (int i = 0; i < n; i++)
+  {
+    free(AT[i]);
+  }
+  free(AT);
+
   *tempo = timestamp() - *tempo;
 }
 
@@ -344,9 +382,10 @@ real_t gradienteConjugado(real_t **A, real_t *b, real_t *X, real_t **M,
   for (int i = 0; i < max_it; i++)
   {
     real_t numerador = produtoInternoDeVetores(residuo, zk, n);
+    matrizXvetor(A, p, Apk, n, k);
     real_t ak = numerador / vetorTxMatrizxVetor(p, A, n, k);
 
-    matrizXvetor(A, p, Apk, n, k);
+    /* matrizXvetor(A, p, Apk, n, k); */
 
     memcpy(XAntigo, X, n * sizeof(real_t));
     for (int j = 0; j < n; j++)
@@ -394,7 +433,7 @@ real_t gradienteConjugado(real_t **A, real_t *b, real_t *X, real_t **M,
  * e guarda em matrizNova e em vetorNovo */
 void multiplicaPeloPreCondicionador(real_t **matrizNova, real_t **A, real_t **M, real_t *vetorNovo, real_t *B, int n, rtime_t *tempo)
 {
-  *tempo = timestamp();
+  //*tempo = timestamp();
   for (int i = 0; i < n; i++)
   {
     for (int j = 0; j < n; j++)
@@ -416,5 +455,5 @@ void multiplicaPeloPreCondicionador(real_t **matrizNova, real_t **A, real_t **M,
     }
   }
 
-  *tempo = timestamp() - *tempo;
+  //*tempo = timestamp() - *tempo;
 }

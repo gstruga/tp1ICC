@@ -3,21 +3,18 @@
 #include "utils.h"
 
 /*libera toda memoria da heap*/
-void free_tudo(real_t **A, real_t **ASP, real_t **Acondicionada, real_t **L, real_t **U, real_t **M, real_t *BSP,
-               real_t *Bcondicionada, real_t *B, real_t *X, real_t *residuo, real_t *D, int n)
+void free_tudo(real_t **A, real_t **ASP, real_t **L, real_t **U, real_t **M, real_t *BSP,
+               real_t *B, real_t *X, real_t *residuo, real_t *D, int n)
 {
     for (int i = 0; i < n; i++)
     {
         free(A[i]);
         free(ASP[i]);
-        free(Acondicionada[i]);
         free(L[i]);
         free(U[i]);
         free(M[i]);
     }
     free(A);
-    free(Acondicionada);
-    free(Bcondicionada);
     free(ASP);
     free(BSP);
     free(B);
@@ -66,12 +63,24 @@ static inline real_t *aloca_vetor(int tam)
     return aux;
 }
 
+void prnMat(real_t **mat, real_t *vet, int tam)
+{
+    for (int i = 0; i < tam; i++)
+    {
+        for (int j = 0; j < tam; j++)
+        {
+            printf("%lf ", mat[i][j]);
+        }
+        printf("%lf\n", vet[i]);
+    }
+}
+
 int main()
 {
     srandom(20252);
     int n, k, maxit, totalIt;
     real_t w = 0.0;
-    real_t **A, *B, **ASP, **Acondicionada, *BSP, *Bcondicionada, *residuo;
+    real_t **A, *B, **ASP, *BSP, *residuo;
     real_t *D, **L, **U, **M, e;
     rtime_t tempoPC, tempoIter, tempoResiduo;
 
@@ -87,8 +96,6 @@ int main()
     residuo = aloca_vetor(n);
     ASP = aloca_matriz(n);
     BSP = aloca_vetor(n);
-    Acondicionada = aloca_matriz(n);
-    Bcondicionada = aloca_vetor(n);
 
     D = aloca_vetor(n);
     L = aloca_matriz(n);
@@ -99,13 +106,19 @@ int main()
 
     criaKDiagonal(n, k, A, B);
 
+    // prnMat(A, B, n);
+
     double tempo;
 
     tempoPC = timestamp();
     genSimetricaPositiva(A, B, n, k, ASP, BSP, &tempo);
+    // printf("\n\n");
+    // prnMat(ASP, BSP, n);
     geraDLU(ASP, n, k, D, L, U, &tempo);
     geraPreCond(D, L, U, w, n, k, M, &tempo);
     tempoPC = timestamp() - tempoPC;
+
+    k = k * 2 - 1;
 
     tempoIter = timestamp();
     real_t norma = gradienteConjugado(ASP, BSP, X, M, n, k, &tempo, maxit, e, &tempoResiduo, &totalIt);
@@ -119,7 +132,7 @@ int main()
     }
     printf("\n");
 
-    printf("%.8g\n", norma);
+    // printf("%.8g\n", norma);
 
     real_t res = calcResiduoSL(A, B, X, n, k, residuo, &tempo);
 
@@ -131,7 +144,7 @@ int main()
 
     printf("%.8g\n", tempoResiduo);
 
-    free_tudo(A, ASP, Acondicionada, L, U, M, BSP, Bcondicionada, B, X, residuo, D, n);
+    free_tudo(A, ASP, L, U, M, BSP, B, X, residuo, D, n);
 
     return 0;
 }
