@@ -118,10 +118,8 @@ int main()
     geraPreCond(D, L, U, w, n, k, M, &tempo);
     tempoPC = timestamp() - tempoPC;
 
-    k = k * 2 - 1;
-
     tempoIter = timestamp();
-    real_t norma = gradienteConjugado(ASP, BSP, X, M, n, k, &tempo, maxit, e, &tempoResiduo, &totalIt);
+    real_t norma = gradienteConjugado(ASP, BSP, X, M, n, k * 2 - 1, &tempo, maxit, e, &tempoResiduo, &totalIt);
     tempoIter = timestamp() - tempoIter;
 
     tempoIter = tempoIter / totalIt;
@@ -132,7 +130,7 @@ int main()
     }
     printf("\n");
 
-    // printf("%.8g\n", norma);
+    printf("%.8g\n", norma);
 
     real_t res = calcResiduoSL(A, B, X, n, k, residuo, &tempo);
 

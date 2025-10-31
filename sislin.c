@@ -38,6 +38,32 @@ static inline real_t **aloca_matriz(int tam)
   return (aux);
 }
 
+/* resolve martiz*A = matriz * B, guardando em matrizNova e vetorNovo */
+void multiplicaPelaTransposta(real_t **matrizNova, real_t **A, real_t **matriz, real_t *vetorNovo, real_t *B, int n)
+{
+  for (int i = 0; i < n; i++)
+  {
+    for (int j = 0; j < n; j++)
+    {
+      matrizNova[i][j] = 0.0;
+      for (int k = 0; k < n; k++)
+      {
+        matrizNova[i][j] += matriz[i][k] * A[k][j];
+      }
+    }
+  }
+
+  for (int i = 0; i < n; i++)
+  {
+    vetorNovo[i] = 0.0;
+    for (int k = 0; k < n; k++)
+    {
+      vetorNovo[i] += matriz[i][k] * B[k];
+    }
+  }
+
+}
+
 /*faz o vetor trasposto vezes o vetor*/
 static inline real_t produtoInternoDeVetores(real_t *vetor1, real_t *vetor2, int tam)
 {
@@ -212,28 +238,8 @@ void genSimetricaPositiva(real_t **A, real_t *b, int n, int k,
     }
   }
 
-  multiplicaPeloPreCondicionador(ASP, A, AT, bsp, b, n, NULL);
-  /*int limitej = LIMITEJ(k);
-  for (int i = 0; i < n; i++)
-  {
-    ASP[i][i] *= 0.5;
-    for (int j = i + 1; j <= i + limitej; j++)
-    {
-      if (j >= n)
-        break;
-      ASP[i][j] *= 0.5;
-    }
-
-    for (int j = i - 1; j <= i - limitej; j--)
-    {
-      if (j < 0)
-        break;
-      ASP[i][j] *= 0.5;
-    }
-  }
-
-  memcpy(bsp, b, n * sizeof(real_t));*/
-
+  multiplicaPelaTransposta(ASP, A, AT, bsp, b, n);
+  
   for (int i = 0; i < n; i++)
   {
     free(AT[i]);
@@ -385,7 +391,6 @@ real_t gradienteConjugado(real_t **A, real_t *b, real_t *X, real_t **M,
     matrizXvetor(A, p, Apk, n, k);
     real_t ak = numerador / vetorTxMatrizxVetor(p, A, n, k);
 
-    /* matrizXvetor(A, p, Apk, n, k); */
 
     memcpy(XAntigo, X, n * sizeof(real_t));
     for (int j = 0; j < n; j++)
@@ -427,33 +432,4 @@ real_t gradienteConjugado(real_t **A, real_t *b, real_t *X, real_t **M,
   free(zk);
 
   return norma;
-}
-
-/* multiplica a matriz de coeficientes e os termos independentes pelo precondicionador
- * e guarda em matrizNova e em vetorNovo */
-void multiplicaPeloPreCondicionador(real_t **matrizNova, real_t **A, real_t **M, real_t *vetorNovo, real_t *B, int n, rtime_t *tempo)
-{
-  //*tempo = timestamp();
-  for (int i = 0; i < n; i++)
-  {
-    for (int j = 0; j < n; j++)
-    {
-      matrizNova[i][j] = 0.0;
-      for (int k = 0; k < n; k++)
-      {
-        matrizNova[i][j] += M[i][k] * A[k][j];
-      }
-    }
-  }
-
-  for (int i = 0; i < n; i++)
-  {
-    vetorNovo[i] = 0.0;
-    for (int k = 0; k < n; k++)
-    {
-      vetorNovo[i] += M[i][k] * B[k];
-    }
-  }
-
-  //*tempo = timestamp() - *tempo;
 }
